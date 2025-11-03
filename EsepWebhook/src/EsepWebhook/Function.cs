@@ -18,7 +18,7 @@ public class Function
     /// <returns></returns>
     public string FunctionHandler(object input, ILambdaContext context)
     {
-        context.Logger.LogInformation($"FunctionHandler received: {input}");
+        //context.Logger.LogInformation($"FunctionHandler received: {input}");
 
         dynamic json = JsonConvert.DeserializeObject<dynamic>(input.ToString());
         string payload = $"{{'text':'Issue Created: {json.issue.html_url}'}}";
