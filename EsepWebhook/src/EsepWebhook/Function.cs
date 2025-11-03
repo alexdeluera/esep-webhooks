@@ -18,9 +18,8 @@ public class Function
     /// <returns></returns>
     public string FunctionHandler(object input, ILambdaContext context)
     {
-        //context.Logger.LogInformation($"FunctionHandler received: {input}");
-
         dynamic json = JsonConvert.DeserializeObject<dynamic>(input.ToString());
+        
         string payload = $"{{'text':'Issue Created: {json.issue.html_url}'}}";
         
         var client = new HttpClient();
@@ -28,7 +27,7 @@ public class Function
         {
             Content = new StringContent(payload, Encoding.UTF8, "application/json")
         };
-    
+
         var response = client.Send(webRequest);
         using var reader = new StreamReader(response.Content.ReadAsStream());
             
