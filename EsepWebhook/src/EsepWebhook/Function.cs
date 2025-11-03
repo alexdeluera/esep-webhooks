@@ -1,35 +1,46 @@
+using System;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using Amazon.Lambda.Core;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 
-namespace EsepWebhook;
-
-public class Function
+namespace EsepWebhook
 {
-
-    /// <summary>
-    /// A simple function that takes a string and does a ToUpper
-    /// </summary>
-    /// <param name="input">The event for the Lambda function handler to process.</param>
-    /// <param name="context">The ILambdaContext that provides methods for logging and describing the Lambda environment.</param>
-    /// <returns></returns>
-    public string FunctionHandler(object input, ILambdaContext context)
+    public class Function
     {
-        dynamic json = JsonConvert.DeserializeObject<dynamic>(input.ToString());
+        private static readonly HttpClient httpClient = new HttpClient();
 
-        string payload = $"{{'text':'Issue Created: {json.issue.html_url}'}}";
-
-        var client = new HttpClient();
-        var webRequest = new HttpRequestMessage(HttpMethod.Post, Environment.GetEnvironmentVariable("SLACK_URL"))
+        public async Task<string> FunctionHandler(JObject input, ILambdaContext context)
         {
-            Content = new StringContent(payload, Encoding.UTF8, "application/json")
-        };
+            context.Logger.LogLine("Received event: " + input.ToString());
 
-        var response = client.Send(webRequest);
-        using var reader = new StreamReader(response.Content.ReadAsStream());
+            // Extract issue URL
+            string issueUrl = input["issue"]?["html_url"]?.ToString();
+            if (string.IsNullOrEmpty(issueUrl))
+            {
+                context.Logger.LogLine("No issue URL found in payload.");
+                return "No issue found.";
+            }
 
-        return reader.ReadToEnd();
+            // Prepare Slack message
+            var slackUrl = Environment.GetEnvironmentVariable("SLACK_URL");
+            var slackMessage = new JObject
+            {
+                ["text"] = $"🐙 New GitHub Issue Created: {issueUrl}"
+            };
+
+            // Send to Slack
+            var response = await httpClient.PostAsync(
+                slackUrl,
+                new StringContent(slackMessage.ToString(), Encoding.UTF8, "application/json")
+            );
+
+            context.Logger.LogLine($"Posted to Slack: {response.StatusCode}");
+            return $"Posted to Slack: {response.StatusCode}";
+        }
     }
 }
